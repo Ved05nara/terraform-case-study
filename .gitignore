@@ -22,3 +22,9 @@ override.tf.json
 # CLI configuration files
 .terraformrc
 terraform.rc
+!environments/*.tfvars
+backend.hcl
+*.tfplan
+plan.json
+cost.json
+cost.txt
