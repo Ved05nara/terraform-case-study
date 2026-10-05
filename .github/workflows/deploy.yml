@@ -1,0 +1,68 @@
+name: Reviewed Terraform deployment
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [dev, staging, prod]
+        default: dev
+        required: true
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: terraform-${{ inputs.environment }}
+  cancel-in-progress: false
+jobs:
+  plan:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}-plan
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - run: terraform init -input=false -backend-config="bucket=$STATE_BUCKET" -backend-config="key=devops/terraform.tfstate" -backend-config="region=$AWS_REGION" -backend-config="encrypt=true" -backend-config="use_lockfile=true"
+        env:
+          STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      - run: terraform workspace select -or-create "$TARGET_ENV"
+        env:
+          TARGET_ENV: ${{ inputs.environment }}
+      - run: terraform plan -input=false -lock-timeout=5m -var-file="environments/$TARGET_ENV.tfvars" -out=reviewed.tfplan && terraform show -no-color reviewed.tfplan > reviewed-plan.txt
+        env:
+          TARGET_ENV: ${{ inputs.environment }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-plan
+          path: |
+            reviewed.tfplan
+            reviewed-plan.txt
+          retention-days: 1
+  apply:
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - run: terraform init -input=false -backend-config="bucket=$STATE_BUCKET" -backend-config="key=devops/terraform.tfstate" -backend-config="region=$AWS_REGION" -backend-config="encrypt=true" -backend-config="use_lockfile=true"
+        env:
+          STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      - run: terraform workspace select "$TARGET_ENV"
+        env:
+          TARGET_ENV: ${{ inputs.environment }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: reviewed-plan
+      - run: terraform apply -input=false -lock-timeout=5m reviewed.tfplan

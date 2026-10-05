@@ -1,0 +1,41 @@
+name: Terraform checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate
+      - run: terraform test
+      - name: Security scan (report demo exceptions for review)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          format: table
+          exit-code: '0'
+          severity: HIGH,CRITICAL
+      - name: Cost estimate
+        if: github.event_name == 'push' && vars.ENABLE_INFRACOST == 'true'
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+      - name: Generate cost estimate
+        if: github.event_name == 'push' && vars.ENABLE_INFRACOST == 'true'
+        run: infracost breakdown --path . --terraform-var-file environments/dev.tfvars --format table > cost.txt
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push' && vars.ENABLE_INFRACOST == 'true'
+        with:
+          name: cost-estimate
+          path: cost.txt
+
