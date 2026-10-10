@@ -1,4 +1,4 @@
-bucket = "REPLACE_WITH_YOUR_EXISTING_STATE_BUCKET"
+bucket = "devops-tf-state-team-98712"
 key = "devops/terraform.tfstate"
 region = "ap-south-1"
 encrypt = true
