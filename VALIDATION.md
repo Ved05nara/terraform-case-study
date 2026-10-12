@@ -38,7 +38,18 @@ Follow [docs/VERIFICATION.md](docs/VERIFICATION.md). Record sanitized dates, com
 
 The encrypted-plan round-trip is included as a credential-free CI check. Local GPG execution was also blocked in this runtime, so that check remains pending on the runner.
 
-## GitHub verification — 12 October 2026
+## GitHub verification - 12 October 2026
 CI passed: https://github.com/Ved05nara/terraform-case-study/actions/runs/38249554694
 Formatting, Terraform validation/tests, Python helper tests, encrypted-plan round trip, and Trivy execution passed.
 This resolves the previously pending clean-runner checks. Infracost and live AWS locking, drift repair, and OIDC deployment remain unverified.
+
+## Live verification - 12 October 2026
+
+- Verified all seven managed resources use their module addresses.
+- Pinned the deployed AMI; the baseline plan showed no changes.
+- Verified S3 lock contention with dual S3/DynamoDB locking configured: a competing plan failed while an interactive apply held the lock.
+- Cancelled that apply, removed the temporary test configuration, and confirmed a no-change plan.
+- Changed the VPC Name tag to temporary-drift-demo.
+- Terraform planned only the tag repair: 0 to add, 1 to change, 0 to destroy.
+- Applied the saved repair plan; the following plan showed no changes.
+- GitHub OIDC deployment and Infracost verification remain pending.
