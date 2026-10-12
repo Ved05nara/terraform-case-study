@@ -6,13 +6,14 @@ module "networking" {
   subnet_cidr = var.subnet_cidr
 }
 module "compute" {
-  source        = "./modules/compute"
-  name          = local.name
-  vpc_id        = module.networking.vpc_id
-  subnet_id     = module.networking.subnet_id
-  instance_type = var.instance_type
-  ami_id        = var.ami_id
-  depends_on    = [module.networking]
+  source           = "./modules/compute"
+  name             = local.name
+  vpc_id           = module.networking.vpc_id
+  subnet_id        = module.networking.subnet_id
+  instance_type    = var.instance_type
+  ami_id           = var.ami_id
+  allow_latest_ami = var.allow_latest_ami
+  depends_on       = [module.networking]
 }
 # Preserve existing resource identity when upgrading the original project.
 moved {

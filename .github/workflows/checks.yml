@@ -13,6 +13,15 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.10.5
+      - run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Check encrypted-plan round trip
+        run: |
+          export GNUPGHOME="$(mktemp -d)"
+          trap 'rm -rf "$GNUPGHOME"' EXIT
+          printf 'test binary plan\0' > "$GNUPGHOME/plan"
+          printf '%s' 'ci-test-only' | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --symmetric --cipher-algo AES256 --output "$GNUPGHOME/plan.gpg" "$GNUPGHOME/plan"
+          printf '%s' 'ci-test-only' | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --decrypt --output "$GNUPGHOME/decoded" "$GNUPGHOME/plan.gpg"
+          cmp "$GNUPGHOME/plan" "$GNUPGHOME/decoded"
       - run: terraform fmt -check -recursive
       - run: terraform init -backend=false -input=false
       - run: terraform validate
@@ -23,8 +32,14 @@ jobs:
           scan-type: config
           scan-ref: .
           format: table
+          output: trivy-results.txt
           exit-code: '0'
           severity: HIGH,CRITICAL
+      - uses: actions/upload-artifact@v4
+        with:
+          name: security-report
+          path: trivy-results.txt
+          retention-days: 7
       - name: Cost estimate
         if: github.event_name == 'push' && vars.ENABLE_INFRACOST == 'true'
         uses: infracost/actions/setup@v3

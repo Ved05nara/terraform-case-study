@@ -1,4 +1,5 @@
 data "aws_ami" "ubuntu" {
+  count       = var.ami_id == null && var.allow_latest_ami ? 1 : 0
   most_recent = true
   owners      = ["099720109477"]
   filter {
@@ -31,7 +32,7 @@ resource "aws_security_group" "web_sg" {
   }
 }
 resource "aws_instance" "web_server" {
-  ami                         = var.ami_id != null ? var.ami_id : data.aws_ami.ubuntu.id
+  ami                         = var.ami_id != null ? var.ami_id : try(data.aws_ami.ubuntu[0].id, null)
   instance_type               = var.instance_type
   subnet_id                   = var.subnet_id
   vpc_security_group_ids      = [aws_security_group.web_sg.id]
@@ -46,6 +47,12 @@ resource "aws_instance" "web_server" {
     encrypted   = true
     volume_type = "gp3"
     volume_size = 8
+  }
+  lifecycle {
+    precondition {
+      condition     = var.ami_id != null || var.allow_latest_ami
+      error_message = "Pin ami_id for an existing deployment. Set allow_latest_ami=true only for deliberate image discovery."
+    }
   }
   tags = { Name = "${var.name}-web" }
 }
