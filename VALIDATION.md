@@ -37,3 +37,8 @@ No live AWS credentials were used for this review. No infrastructure, backend co
 Follow [docs/VERIFICATION.md](docs/VERIFICATION.md). Record sanitized dates, command exit codes and workflow URLs here after each real test. Keep credentials, raw state and decrypted plan evidence private.
 
 The encrypted-plan round-trip is included as a credential-free CI check. Local GPG execution was also blocked in this runtime, so that check remains pending on the runner.
+
+## GitHub verification — 12 October 2026
+CI passed: https://github.com/Ved05nara/terraform-case-study/actions/runs/38249554694
+Formatting, Terraform validation/tests, Python helper tests, encrypted-plan round trip, and Trivy execution passed.
+This resolves the previously pending clean-runner checks. Infracost and live AWS locking, drift repair, and OIDC deployment remain unverified.
