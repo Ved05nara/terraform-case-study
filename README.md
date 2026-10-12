@@ -38,6 +38,18 @@ The following capabilities are described in the configuration or documentation b
 * [ ] Verify AWS OIDC authentication, IAM permissions, GitHub environment restrictions, and human approval before deployment.
 * [ ] Update `VALIDATION.md` with actual test results and supporting evidence.
 
+## Verification tools added (12 October 2026)
+
+The remaining tasks have a step-by-step [verification guide](docs/VERIFICATION.md), including PowerShell commands and expected results. Start there before applying any new plan.
+
+- `scripts/pin_deployed_ami.py` reads the selected workspace state and writes an ignored local AMI pin. Latest-image discovery now requires explicit `allow_latest_ami=true`; existing stacks fail closed without a pin.
+- `scripts/check_plan.py` rejects resource deletion/replacement, and its tag-only mode rejects unrelated changes during drift repair.
+- Tests cover the seven migration mappings, pinning and plan guards, AMI selection and public routing. Code tests do not prove the current AWS state.
+- Deployment supports the existing `default` workspace, refuses to create missing workspaces, preserves the explicitly configured locking mode, and encrypts saved-plan artifacts. OIDC roles, reviewers and account tests remain operator requirements.
+- CI publishes an advisory Trivy report. Cost estimation remains opt-in and requires an Infracost key.
+
+See [VALIDATION.md](VALIDATION.md) for actual results. These additions do not claim that live locking, drift repair, or OIDC approval has already been demonstrated.
+
 ## Architecture
 
 The deployed development environment contains:
@@ -74,8 +86,11 @@ Initialize Terraform:
 
 ```bash
 terraform init -backend-config=backend.hcl
-terraform workspace select -or-create dev
+terraform workspace select default
+python scripts/pin_deployed_ami.py
 ```
+
+For an existing deployment, use its actual workspace and variable file. Do not create a new workspace as a way to access existing state. For a deliberately new demo, choose an AMI explicitly (or opt into discovery) and review its separate provisioning/costs.
 
 Format and validate the configuration:
 
@@ -88,7 +103,7 @@ Create and inspect a saved plan:
 
 ```bash
 terraform plan \
-  -var-file=environments/dev.tfvars \
+  -var-file=environments/default.tfvars \
   -out=reviewed.tfplan
 
 terraform show reviewed.tfplan
@@ -169,6 +184,7 @@ terraform init -backend=false
 terraform fmt -check -recursive
 terraform validate
 terraform test
+python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
 Then:

@@ -29,3 +29,10 @@ plan.json
 cost.json
 cost.txt
 backend.hcl
+# Private evidence and verification outputs
+*.plan.json
+plan-output.txt
+reviewed-plan.txt
+verification-results/
+__pycache__/
+*.gpg

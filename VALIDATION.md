@@ -1,19 +1,39 @@
-# Validation handover
+# Validation record — 12 October 2026
 
-Checks completed locally:
-- Terraform 1.10.5 recursive formatting and format check: passed.
-- Both GitHub Actions files parsed as YAML: passed (syntax only).
-- Nginx user-data script checked with `bash -n`: passed.
-- Provider/module initialization initially completed with AWS 5.100.0.
+Reviewed starting commit: `8dc54cac72960a3eb2f2c0c9c050b4cd4c4ce500`.
 
-Full Terraform validation was blocked: initial provider schema startup failed, and subsequent validation reported a cached-provider checksum mismatch. The committed lockfile retains provider checksums; checks were not bypassed. Run initialization and validation from a clean checkout on your machine or GitHub runner. Do not copy local `.terraform` caches.
+## Evidence inspected
 
-A mocked Terraform plan test checks IMDSv2, root-volume encryption, and the HTTP-only ingress count. It is included in CI but was not executable locally because of the provider issue. Run:
+- README on main separates verified infrastructure from pending locking, remediation, AMI and CI/CD checks.
+- Latest [main CI run](https://github.com/Ved05nara/terraform-case-study/actions/runs/38122501855) failed at `terraform fmt -check -recursive`, specifically `environments/dev.tfvars`. Terraform validation/tests, Trivy and cost estimation did not run in that job.
+- Existing `plan-output.txt` was an obsolete mixed-encoding plan proposing VPC replacement, not proof of successful remediation. Removed the file; raw plans and outputs are ignored going forward.
 
-```bash
-terraform init -backend=false
-terraform validate
-terraform test
-```
+## Checks performed in a fresh checkout
 
-Not executed: Trivy scan, Infracost estimate, GitHub Actions jobs, real AWS plan/apply/destroy, live Nginx smoke test, or drift restoration. These need external services and account configuration. No AWS resources were created or modified during this work.
+| Check | Result |
+| --- | --- |
+| Terraform version | 1.10.5, linux_amd64 |
+| `terraform init -backend=false -input=false` | Passed; AWS 5.100.0 installed with HashiCorp signature |
+| `terraform fmt -check -recursive` | Passed after fixing dev.tfvars |
+| Workflow YAML parsing | Passed for checks.yml and deploy.yml; syntax only |
+| `bash -n` on init_backend.sh and user-data.sh | Passed |
+| `python3 -m unittest discover -s tests -p 'test_*.py' -v` | Passed, 4 tests covering AMI extraction, unsafe plan rejection, all 7 unique moved mappings, and backend arguments for each locking mode |
+| `git diff --check` | Passed |
+| Local Terraform provider validation/test execution | Blocked: provider could not open its Unix socket (`operation not permitted`) in this runtime; no checksum/security checks bypassed |
+
+Terraform mocked tests now cover encrypted storage/IMDSv2/ingress, pinned AMI bypass of discovery, missing-AMI rejection, explicit discovery and configured network routing. The GitHub PR run must provide the independent clean-runner check. Publishing was attempted but the GitHub integration rejected branch/tree creation with HTTP 403, so no PR or new CI run was created. Apply the supplied patch and push a branch to execute these tests.
+
+## Live account verification still pending
+
+No live AWS credentials were used for this review. No infrastructure, backend configuration or remote state was changed. Historical success in the README is teammate-reported, not independently re-tested in this session.
+
+- Current state listing of all seven module destinations.
+- Actual deployed AMI pin and no-change baseline.
+- Concurrent-operation rejection and normal lock release for the selected locking mode; native `.tflock` lifecycle if migrating.
+- Tag-only Terraform-driven drift repair, followed by a no-change plan.
+- AWS OIDC, scoped role permissions, protected environments, human review and exact saved-plan apply.
+- Infracost estimate with an account key; it is skipped unless enabled.
+
+Follow [docs/VERIFICATION.md](docs/VERIFICATION.md). Record sanitized dates, command exit codes and workflow URLs here after each real test. Keep credentials, raw state and decrypted plan evidence private.
+
+The encrypted-plan round-trip is included as a credential-free CI check. Local GPG execution was also blocked in this runtime, so that check remains pending on the runner.

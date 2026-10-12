@@ -29,3 +29,9 @@ variable "subnet_cidr" {
     error_message = "Provide a valid IPv4 CIDR within the VPC."
   }
 }
+
+variable "allow_latest_ami" {
+  type        = bool
+  default     = false
+  description = "Explicitly allow latest AMI discovery; keep false for existing stacks and drift repair."
+}
